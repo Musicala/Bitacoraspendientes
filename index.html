@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#5729FF" />
+  <title>Conciliación de Bitácoras · Musicala</title>
+  <meta name="description" content="Panel para revisar qué clases de Musicala tienen bitácora y cuáles siguen pendientes." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+
+    <!-- ===================== Barra superior ===================== -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">M</div>
+        <div>
+          <p class="eyebrow">Musicala</p>
+          <h1>Conciliación de Bitácoras</h1>
+        </div>
+      </div>
+
+      <div class="topbar-spacer"></div>
+
+      <div id="connectionStatus" class="conn-pills" aria-label="Estado de conexión">
+        <span class="conn-pill is-off"><span class="dot"></span><b>RIP</b><span class="who">Sin conectar</span></span>
+        <span class="conn-pill is-off"><span class="dot"></span><b>Bitácoras</b><span class="who">Sin conectar</span></span>
+      </div>
+
+      <div class="auth-actions">
+        <button id="personalViewBtn" class="btn secondary small" hidden>Ver mis pendientes</button>
+        <button id="ripLoginBtn" class="btn ghost small">Conectar RIP</button>
+        <button id="bitacorasLoginBtn" class="btn ghost small">Conectar Bitácoras</button>
+        <button id="fsaLoginBtn" class="btn ghost small">Conectar FSA</button>
+        <button id="signOutBtn" class="btn subtle small">Salir</button>
+      </div>
+    </header>
+
+    <main>
+
+      <!-- ===================== Saludo docente ===================== -->
+      <section class="teacher-greeting panel" aria-live="polite">
+        <p class="eyebrow">Tu resumen</p>
+        <h2 id="teacherGreetingTitle">Hola 👋 Estas son tus clases</h2>
+        <p id="teacherGreetingSub">Revisa primero lo pendiente y ponte al día en un momento.</p>
+      </section>
+
+      <!-- ===================== Periodo y filtros ===================== -->
+      <section class="panel controls-panel">
+        <div class="filters-head">
+          <div class="filters-title">
+            <div>
+              <p class="eyebrow">Periodo</p>
+              <h2>¿Qué quieres revisar?</h2>
+            </div>
+            <span id="filterCount" class="filter-count" aria-live="polite"></span>
+          </div>
+          <div class="button-row">
+            <button id="clearFiltersBtn" class="btn subtle small" type="button">Limpiar filtros</button>
+            <button id="runDemoBtn" class="btn secondary small" type="button">Modo prueba</button>
+            <button id="loadDataBtn" class="btn primary" type="button">Cargar información</button>
+          </div>
+        </div>
+
+        <div class="filters-grid">
+          <label class="field">
+            <span>Desde</span>
+            <input id="fromDate" type="date" />
+          </label>
+          <label class="field">
+            <span>Hasta</span>
+            <input id="toDate" type="date" />
+          </label>
+          <label class="field admin-only">
+            <span>Profe</span>
+            <input id="teacherFilter" type="search" placeholder="Ej. Laura" />
+          </label>
+          <label class="field">
+            <span>Estudiante</span>
+            <input id="studentFilter" type="search" placeholder="Ej. Juan" />
+          </label>
+          <label class="field admin-only">
+            <span>Estado</span>
+            <select id="statusFilter">
+              <option value="pending">Solo pendientes</option>
+              <option value="missing">Clases sin bitácora</option>
+              <option value="uploaded">Bitácoras subidas</option>
+              <option value="review">Bitácoras por revisar</option>
+              <option value="all">Todos</option>
+              <option value="ok">Bitácora completa</option>
+              <option value="faltante">Falta bitácora</option>
+              <option value="extra">Sin clase en RIP</option>
+              <option value="duplicada">Duplicadas</option>
+              <option value="profe_distinto">Docente distinto</option>
+              <option value="hora_diferente">Hora diferente</option>
+              <option value="parcial_grupal">Falta en grupal</option>
+              <option value="revisar">Necesita revisión</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Organizar por</span>
+            <select id="sortFilter">
+              <option value="date">Fecha</option>
+              <option value="student">Estudiante</option>
+              <option value="class">Clase</option>
+            </select>
+          </label>
+        </div>
+
+        <details class="filters-advanced admin-only">
+          <summary>Opciones avanzadas</summary>
+          <div class="adv-body">
+            <label class="checkbox-line">
+              <input id="includeDuplicates" type="checkbox" />
+              <span>Incluir clases marcadas como duplicadas en RIP</span>
+            </label>
+            <p class="microcopy">
+              Los filtros de profe y estudiante actualizan la tabla, los indicadores generales y el resumen por docente.
+              No se cuentan reservas de espacio, Musigym, ME ni talleres vacacionales.
+            </p>
+          </div>
+        </details>
+      </section>
+
+      <!-- ===================== Resumen (KPIs) ===================== -->
+      <section class="kpi-grid" aria-label="Resumen de conciliación">
+        <article class="kpi"><span>Clases realizadas</span><strong id="kpiExpected">0</strong></article>
+        <article class="kpi good"><span>Clases con bitácora</span><strong id="kpiCompletedClasses">0</strong></article>
+        <article class="kpi danger"><span>Clases pendientes</span><strong id="kpiPendingClasses">0</strong><small>sesiones sin repetir estudiantes</small></article>
+        <article class="kpi admin-only"><span>Bitácoras subidas</span><strong id="kpiLogs">0</strong></article>
+        <article class="kpi danger admin-only"><span>Bitácoras faltantes</span><strong id="kpiMissing">0</strong><small>por estudiante</small></article>
+        <article class="kpi warning admin-only"><span>Por revisar</span><strong id="kpiReview">0</strong></article>
+        <article class="kpi feature"><span>Cumplimiento</span><strong id="kpiRate">0%</strong></article>
+      </section>
+
+      <!-- ===================== Requiere atención (admin) ===================== -->
+      <section class="panel attention-panel admin-only" id="attentionPanel" aria-label="Casos que requieren atención">
+        <div class="section-heading compact">
+          <div>
+            <p class="eyebrow">Prioridad</p>
+            <h2>Requiere atención</h2>
+          </div>
+        </div>
+        <div id="attentionChips" class="attention-chips" role="group" aria-label="Filtrar por caso"></div>
+      </section>
+
+      <!-- ===================== Vista de clases ===================== -->
+      <section class="panel class-groups-panel">
+        <div class="section-heading compact">
+          <div>
+            <p class="eyebrow">Clases</p>
+            <h2>Vista de clases</h2>
+          </div>
+        </div>
+        <div id="classGroups" class="class-groups">
+          <div class="empty-card"><strong>Aún no hay datos</strong><span>Carga la información o abre el modo prueba para empezar.</span></div>
+        </div>
+      </section>
+
+      <!-- ===================== Cumplimiento por docente (admin) ===================== -->
+      <section class="panel teacher-kpis-panel admin-only">
+        <div class="section-heading compact">
+          <div>
+            <p class="eyebrow">Docentes</p>
+            <h2>Cumplimiento por docente</h2>
+            <p class="sub">Toca un docente para filtrar el panel; tócalo de nuevo para quitar el filtro.</p>
+          </div>
+        </div>
+        <div id="teacherKpis" class="teacher-kpi-grid">
+          <div class="empty-card"><strong>Sin datos todavía</strong><span>Carga la información o abre el modo prueba.</span></div>
+        </div>
+      </section>
+
+      <!-- ===================== Tabla detallada (admin) ===================== -->
+      <section class="panel table-panel admin-only">
+        <div class="table-toolbar">
+          <div>
+            <p class="eyebrow">Detalle</p>
+            <h2 style="font-size:1.25rem;color:var(--text-strong);">Explorador de conciliación</h2>
+          </div>
+          <div id="lastUpdate" class="last-update">Sin datos todavía</div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Estado</th>
+                <th>Clase</th>
+                <th>Estudiante</th>
+                <th>Docente</th>
+                <th>Bitácora</th>
+                <th>Observación</th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody">
+              <tr><td colspan="6" class="empty-cell">Carga la información o abre el modo prueba.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="microcopy">Toca cualquier fila para ver el detalle técnico completo del registro.</p>
+      </section>
+
+      <!-- ===================== Herramientas y exportaciones (admin) ===================== -->
+      <details class="panel tools-panel admin-only">
+        <summary>
+          <div class="tools-head">
+            <p class="eyebrow">Avanzado</p>
+            <h2>Herramientas y exportaciones</h2>
+          </div>
+          <svg class="tools-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <div class="tools-body">
+          <div class="tools-group">
+            <h3>Exportaciones</h3>
+            <p>Descarga los resultados actuales. Ideal para revisar antes de escribir cualquier cambio.</p>
+            <div class="button-row">
+              <button id="exportCsvBtn" class="btn secondary small" type="button">Exportar CSV</button>
+              <button id="exportExpectedBtn" class="btn secondary small" type="button">Exportar expected_class_logs (JSON)</button>
+              <button id="exportExpandedBtn" class="btn secondary small" type="button">Exportar bitácoras conciliadas (JSON)</button>
+            </div>
+          </div>
+          <div class="tools-group danger-zone">
+            <h3>Sincronización</h3>
+            <p>
+              Escribe las clases esperadas en el Firebase de Bitácoras (colección <code>expected_class_logs</code>).
+              Es una acción avanzada e irreversible: primero exporta el JSON para revisarlo. Se pedirá confirmación
+              indicando cuántos documentos se van a escribir.
+            </p>
+            <div class="button-row">
+              <button id="syncExpectedBtn" class="btn danger-soft small" type="button">Sincronizar expected_class_logs</button>
+            </div>
+          </div>
+        </div>
+      </details>
+
+    </main>
+  </div>
+
+  <!-- ===================== Drawer de detalle técnico ===================== -->
+  <div id="drawerOverlay" class="drawer-overlay"></div>
+  <aside id="detailDrawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" aria-hidden="true">
+    <header class="drawer-header">
+      <div>
+        <p class="eyebrow">Detalle técnico</p>
+        <h3 id="drawerTitle">Registro seleccionado</h3>
+      </div>
+      <button id="drawerClose" class="drawer-close" type="button" aria-label="Cerrar detalle">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </header>
+    <div class="drawer-body">
+      <div id="detailSummary" class="detail-summary"></div>
+      <details class="detail-tech">
+        <summary>Datos técnicos (JSON)</summary>
+        <pre id="detailsBox">Selecciona una fila para ver el detalle técnico.</pre>
+      </details>
+    </div>
+  </aside>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
