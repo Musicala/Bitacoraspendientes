@@ -232,6 +232,10 @@ async function onTeacherLinkChange(event) {
     await setDoc(doc(firebase.bitacoras.db, "app_config", COLLECTIONS.teacherLinksConfig), {
       links: { [key]: link },
     }, { merge: true });
+    const previousLink = state.teacherLinksByKey.get(key);
+    if (previousLink?.email && previousLink.email !== email) {
+      state.teacherNamesByEmail.get(previousLink.email)?.delete(key);
+    }
     state.teacherLinksByKey.set(key, link);
     applyTeacherLinksToCatalog();
     reconcileAndRender();
