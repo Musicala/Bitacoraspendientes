@@ -450,6 +450,21 @@ select { appearance: none; -webkit-appearance: none;
 .teacher-kpi-stat:focus-visible { box-shadow: var(--sh-focus); }
 .teacher-kpi-stat b { color: var(--text-strong); font-size: 1.05rem; font-weight: 800; }
 
+/* ========================= Vínculos de docentes ========================= */
+.teacher-links-panel { background: linear-gradient(135deg, rgba(12, 65, 196, 0.045), rgba(255, 255, 255, 0.96)); }
+.teacher-links-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-5); margin-top: var(--sp-3); }
+.teacher-links-columns > div { min-width: 0; }
+.teacher-links-columns h3 { margin: 0 0 var(--sp-2); color: var(--text-strong); font-size: 0.9rem; }
+.teacher-links-list { display: grid; border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; background: var(--surface); }
+.teacher-link-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(185px, .9fr); gap: var(--sp-3); align-items: center; padding: var(--sp-3); border-bottom: 1px solid var(--line-soft); }
+.teacher-link-row:last-child { border-bottom: 0; }
+.teacher-link-name { min-width: 0; display: grid; gap: 2px; }
+.teacher-link-name strong { color: var(--text-strong); font-size: 0.9rem; overflow-wrap: anywhere; }
+.teacher-link-name span { color: var(--muted); font-size: var(--fs-micro); }
+.teacher-link-select { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); color: var(--text); font: inherit; font-size: 0.8rem; }
+.teacher-link-select:focus { outline: 0; border-color: var(--brand); box-shadow: var(--sh-focus); }
+.compact-empty { border: 0; border-radius: 0; box-shadow: none; padding: var(--sp-4); }
+
 /* ========================= Tabla ========================= */
 .table-toolbar { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-3); }
 .last-update { color: var(--muted-2); font-size: var(--fs-micro); display: inline-flex; align-items: center; gap: 6px; }
@@ -695,6 +710,8 @@ tbody tr:last-child td { border-bottom: 0; }
   .participant-actions .btn { flex: 1 1 auto; justify-content: center; }
 
   .teacher-kpi-grid { grid-template-columns: 1fr; }
+  .teacher-links-columns { grid-template-columns: 1fr; gap: var(--sp-4); }
+  .teacher-link-row { grid-template-columns: 1fr; gap: var(--sp-2); }
 
   /* --- Tabla → tarjetas --- */
   table { min-width: 0; }
