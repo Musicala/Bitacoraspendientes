@@ -1,0 +1,70 @@
+[
+  {
+    "id": "bit-001",
+    "mode": "individual",
+    "fechaClase": "2026-07-01",
+    "horaClase": "15:00",
+    "docente": "Laura Gómez",
+    "studentIds": [
+      "juan-perez"
+    ],
+    "classCounters": {
+      "juan-perez": 1
+    },
+    "ripRegistroIds": [
+      "rip-001"
+    ],
+    "classLogKeys": [
+      "2026-07-01|laura-gomez|juan-perez|1"
+    ],
+    "title": "Lectura inicial y postura"
+  },
+  {
+    "id": "bit-002",
+    "mode": "group",
+    "fechaClase": "2026-07-03",
+    "horaClase": "16:10",
+    "docente": "Laura Gómez",
+    "studentIds": [
+      "juan-perez",
+      "maria-gomez"
+    ],
+    "title": "Trabajo grupal de pulso"
+  },
+  {
+    "id": "bit-003",
+    "mode": "group",
+    "fechaClase": "2026-07-05",
+    "horaClase": "10:00",
+    "docente": "Carlos Ruiz",
+    "studentIds": [
+      "ana-ruiz"
+    ],
+    "classCounters": {
+      "ana-ruiz": 1
+    },
+    "title": "Acordes básicos"
+  },
+  {
+    "id": "bit-004",
+    "mode": "individual",
+    "fechaClase": "2026-07-06",
+    "horaClase": "14:00",
+    "docente": "Laura Gómez",
+    "studentIds": [
+      "estudiante-extra"
+    ],
+    "title": "Bitácora sin clase RIP"
+  },
+  {
+    "id": "bit-005",
+    "mode": "individual",
+    "fechaClase": "2026-07-03",
+    "horaClase": "17:05",
+    "docente": "Laura Gómez",
+    "studentIds": [
+      "juan-perez"
+    ],
+    "title": "Segunda clase del mismo día con hora para desempatar"
+  }
+]
