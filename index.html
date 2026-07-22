@@ -8,16 +8,135 @@
   <meta name="description" content="Panel para revisar qué clases de Musicala tienen bitácora y cuáles siguen pendientes." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css?v=20260722b" />
 </head>
 <body>
+
+  <!-- ===================== ONBOARDING MODAL ===================== -->
+  <div id="onboardingModal" class="onboarding-overlay" aria-modal="true" role="dialog" aria-label="Bienvenida a Musicala" aria-hidden="true">
+    <!-- Partículas decorativas -->
+    <div class="onb-particles" aria-hidden="true">
+      <span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span>
+    </div>
+
+    <div class="onboarding-card">
+      <!-- Logo -->
+      <div class="onb-logo" aria-hidden="true">
+        <div class="onb-logo-mark">
+          <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M8 22V10l8 4 8-4v12" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="8" cy="22" r="2.5" fill="#fff"/>
+            <circle cx="24" cy="22" r="2.5" fill="#fff"/>
+          </svg>
+        </div>
+        <div class="onb-logo-text">
+          <span class="onb-brand">Musicala</span>
+          <span class="onb-sub">Bitácoras · Conciliación</span>
+        </div>
+      </div>
+
+      <h1 class="onb-title">Conecta tus herramientas<br>y empieza en segundos</h1>
+      <p class="onb-desc">Para ver tus clases y pendientes necesitas conectarte con tu cuenta de Musicala. Son solo 3 pasos.</p>
+
+      <!-- Pasos -->
+      <div class="onb-steps" role="list">
+
+        <!-- Paso 1: RIP -->
+        <div class="onb-step" id="onbStep1" data-step="rip" role="listitem">
+          <div class="onb-step-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10 9 9 9 8 9"/>
+            </svg>
+          </div>
+          <div class="onb-step-info">
+            <strong>Conectar RIP</strong>
+            <span>Registro de clases de Musicala</span>
+          </div>
+          <div class="onb-step-right">
+            <div class="onb-step-check" aria-label="Conectado"></div>
+            <button type="button" class="onb-btn" id="onbRipBtn" aria-label="Conectar con RIP">
+              Conectar
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10h9M12 6l4 4-4 4"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Paso 2: Bitácoras -->
+        <div class="onb-step" id="onbStep2" data-step="bitacoras" role="listitem">
+          <div class="onb-step-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+          </div>
+          <div class="onb-step-info">
+            <strong>Conectar Bitácoras</strong>
+            <span>Tus registros de clase</span>
+          </div>
+          <div class="onb-step-right">
+            <div class="onb-step-check" aria-label="Conectado"></div>
+            <button type="button" class="onb-btn" id="onbBitacorasBtn" aria-label="Conectar con Bitácoras">
+              Conectar
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10h9M12 6l4 4-4 4"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Paso 3: FSA (opcional) -->
+        <div class="onb-step" id="onbStep3" data-step="fsa" role="listitem">
+          <div class="onb-step-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 18V5l12-2v13"/>
+              <circle cx="6" cy="18" r="3"/>
+              <circle cx="18" cy="16" r="3"/>
+            </svg>
+          </div>
+          <div class="onb-step-info">
+            <strong>Conectar FSA</strong>
+            <span class="onb-optional-badge">Opcional</span>
+          </div>
+          <div class="onb-step-right">
+            <div class="onb-step-check" aria-label="Conectado"></div>
+            <button type="button" class="onb-btn" id="onbFsaBtn" aria-label="Conectar con FSA">
+              Conectar
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10h9M12 6l4 4-4 4"/></svg>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- CTA principal -->
+      <button type="button" class="onb-enter-btn" id="onbEnterBtn" disabled aria-label="Entrar a la aplicación">
+        <span class="onb-enter-label">Conecta RIP y Bitácoras para continuar</span>
+        <svg class="onb-enter-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+
+      <button type="button" class="onb-demo-btn" id="onbDemoBtn">
+        Explorar con datos de prueba
+      </button>
+      <p class="onb-hint">Usamos tu cuenta de Google de Musicala para autenticarte de forma segura.</p>
+    </div>
+  </div>
+
   <div class="app-shell">
 
     <!-- ===================== Barra superior ===================== -->
     <header class="topbar">
       <div class="brand">
-        <div class="brand-mark" aria-hidden="true">M</div>
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M8 22V10l8 4 8-4v12" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="8" cy="22" r="2.5" fill="#fff"/>
+            <circle cx="24" cy="22" r="2.5" fill="#fff"/>
+          </svg>
+        </div>
         <div>
           <p class="eyebrow">Musicala</p>
           <h1>Conciliación de Bitácoras</h1>
@@ -43,14 +162,57 @@
     <main>
 
       <!-- ===================== Saludo docente ===================== -->
-      <section class="teacher-greeting panel" aria-live="polite">
+      <section class="teacher-greeting panel" data-tab="inicio" aria-live="polite">
         <p class="eyebrow">Tu resumen</p>
         <h2 id="teacherGreetingTitle">Hola 👋 Estas son tus clases</h2>
         <p id="teacherGreetingSub">Revisa primero lo pendiente y ponte al día en un momento.</p>
       </section>
 
+      <!-- ===================== Widget de racha (solo docentes) ===================== -->
+      <section id="streakWidget" class="streak-widget panel teacher-only" data-tab="inicio" aria-label="Tu racha y progreso" hidden>
+        <!-- Una sola tira: 3 mini-stats guiadas por emoji -->
+        <div class="streak-strip">
+          <div class="streak-stat" title="Pendientes esta semana">
+            <span class="streak-stat-icon">🏆</span>
+            <b id="streakTrophyBadge">0</b>
+            <span class="streak-stat-label">esta semana</span>
+          </div>
+          <div class="streak-stat" title="Racha de días seguidos registrando">
+            <span class="streak-stat-icon" id="streakIcon">🔥</span>
+            <b id="streakDaysNum">0</b>
+            <span class="streak-stat-label">días de racha</span>
+          </div>
+          <div class="streak-stat" title="Cumplimiento del periodo">
+            <span class="streak-stat-icon">✅</span>
+            <b id="streakRateNum">0%</b>
+            <span class="streak-stat-label">al día</span>
+          </div>
+        </div>
+        <button type="button" id="viewUploadedBtn" class="streak-uploaded-btn">
+          📤 Ver subidas
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="streak-uploaded-arrow"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+        </button>
+      </section>
+
+
+      <!-- ===================== Ranking / concurso (solo docentes) ===================== -->
+      <section id="rankingCard" class="panel ranking-card teacher-only" data-tab="inicio" aria-label="Tu puesto en el concurso" hidden>
+        <div class="ranking-head">
+          <span class="ranking-eyebrow">🏆 Concurso de bitácoras</span>
+          <span id="rankingRateChip" class="ranking-rate-chip">0%</span>
+        </div>
+        <div class="ranking-main">
+          <div class="ranking-medal" id="rankingMedal" aria-hidden="true">🎵</div>
+          <div class="ranking-info">
+            <p class="ranking-position">Puesto <b id="rankingPos">–</b> <span id="rankingTotal">de –</span></p>
+            <p class="ranking-phrase" id="rankingPhrase">Carga tus datos para ver tu puesto.</p>
+          </div>
+        </div>
+        <div class="ranking-podium" id="rankingPodium" hidden></div>
+      </section>
+
       <!-- ===================== Periodo y filtros ===================== -->
-      <section class="panel controls-panel">
+      <section class="panel controls-panel" data-tab="bitacoras">
         <div class="filters-head">
           <div class="filters-title">
             <div>
@@ -127,7 +289,7 @@
       </section>
 
       <!-- ===================== Resumen (KPIs) ===================== -->
-      <section class="kpi-grid" aria-label="Resumen de conciliación">
+      <section class="kpi-grid" data-tab="inicio" aria-label="Resumen de conciliación">
         <article class="kpi"><span>Clases realizadas</span><strong id="kpiExpected">0</strong></article>
         <article class="kpi good"><span>Clases con bitácora</span><strong id="kpiCompletedClasses">0</strong></article>
         <article class="kpi danger"><span>Clases pendientes</span><strong id="kpiPendingClasses">0</strong><small>sesiones sin repetir estudiantes</small></article>
@@ -135,28 +297,6 @@
         <article class="kpi danger admin-only"><span>Bitácoras faltantes</span><strong id="kpiMissing">0</strong><small>por estudiante</small></article>
         <article class="kpi warning admin-only"><span>Por revisar</span><strong id="kpiReview">0</strong></article>
         <article class="kpi feature"><span>Cumplimiento</span><strong id="kpiRate">0%</strong></article>
-      </section>
-
-      <!-- ===================== Vínculos de docentes (admin) ===================== -->
-      <section class="panel teacher-links-panel admin-only" aria-labelledby="teacherLinksTitle">
-        <div class="section-heading compact">
-          <div>
-            <p class="eyebrow">Accesos</p>
-            <h2 id="teacherLinksTitle">Vincular docentes</h2>
-            <p class="sub">Relaciona el nombre que llega desde RIP con el correo con el que ingresa cada docente.</p>
-          </div>
-        </div>
-        <div id="teacherLinksNotice" class="microcopy">Carga la información para revisar los docentes detectados.</div>
-        <div class="teacher-links-columns">
-          <div>
-            <h3>Pendientes por vincular</h3>
-            <div id="teacherLinksPending" class="teacher-links-list"></div>
-          </div>
-          <div>
-            <h3>Vínculos guardados</h3>
-            <div id="teacherLinksSaved" class="teacher-links-list"></div>
-          </div>
-        </div>
       </section>
 
       <!-- ===================== Requiere atención (admin) ===================== -->
@@ -171,15 +311,38 @@
       </section>
 
       <!-- ===================== Vista de clases ===================== -->
-      <section class="panel class-groups-panel">
+      <section class="panel class-groups-panel" data-tab="bitacoras">
+        <!-- Segmento Pendientes / Subidas (solo docentes) -->
+        <div id="bitacoraSeg" class="bita-seg teacher-only" role="group" aria-label="Pendientes o subidas" hidden>
+          <button type="button" class="bita-seg-btn is-active" data-seg="pending">Pendientes</button>
+          <button type="button" class="bita-seg-btn" data-seg="uploaded">Subidas</button>
+        </div>
         <div class="section-heading compact">
           <div>
             <p class="eyebrow">Clases</p>
             <h2>Vista de clases</h2>
           </div>
+          <div id="tpTabs" class="tp-tabs teacher-only" role="group" aria-label="Filtrar por rango de fechas" hidden>
+            <button type="button" class="tp-tab" data-range="today">Hoy</button>
+            <button type="button" class="tp-tab" data-range="week">Semana</button>
+            <button type="button" class="tp-tab is-active" data-range="all">Todas</button>
+          </div>
         </div>
+
+        <!-- Progreso de pendientes (solo docentes) -->
+        <div id="teacherProgress" class="teacher-progress teacher-only" hidden>
+          <div class="tp-copy">
+            <p class="tp-title">Te faltan <b id="tpRemaining">0</b></p>
+            <p class="tp-sub" id="tpSub">Te acercas a estar al día</p>
+          </div>
+          <div class="tp-track" id="tpTrack" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Progreso de bitácoras">
+            <div class="tp-fill" id="tpFill"></div>
+            <div class="tp-dots" id="tpDots" aria-hidden="true"></div>
+          </div>
+        </div>
+
         <div id="classGroups" class="class-groups">
-          <div class="empty-card"><strong>Aún no hay datos</strong><span>Carga la información o abre el modo prueba para empezar.</span></div>
+          <div class="empty-card"><strong>📭 Nada por aquí todavía</strong><span>Tus clases aparecerán en un momento.</span></div>
         </div>
       </section>
 
@@ -259,8 +422,37 @@
         </div>
       </details>
 
+      <!-- ===================== Ajustes / cuenta (solo docentes) ===================== -->
+      <section id="settingsPanel" class="panel settings-panel teacher-only" data-tab="settings" aria-label="Ajustes y cuenta">
+        <div class="section-heading compact">
+          <div>
+            <p class="eyebrow">Cuenta</p>
+            <h2>Ajustes y conexiones</h2>
+            <p class="sub">Aquí gestionas tus conexiones y tu sesión.</p>
+          </div>
+        </div>
+        <div id="settingsSlot" class="settings-slot"><!-- JS mueve aquí estado de conexión y acciones --></div>
+      </section>
+
     </main>
   </div>
+
+  <!-- ===================== Menú inferior tipo app (solo docentes) ===================== -->
+  <nav class="tabbar teacher-only" id="tabbar" aria-label="Navegación principal" hidden>
+    <button type="button" class="tabbar-btn is-active" data-goto="inicio" aria-current="page">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+      <span>Inicio</span>
+    </button>
+    <button type="button" class="tabbar-btn" data-goto="bitacoras">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      <span>Bitácoras</span>
+      <span class="tabbar-badge" id="tabbarPending" hidden>0</span>
+    </button>
+    <button type="button" class="tabbar-btn" data-goto="settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Ajustes</span>
+    </button>
+  </nav>
 
   <!-- ===================== Drawer de detalle técnico ===================== -->
   <div id="drawerOverlay" class="drawer-overlay"></div>
@@ -283,7 +475,49 @@
     </div>
   </aside>
 
+  <!-- ===================== Celebración: ¡Vas muy bien! ===================== -->
+  <div id="celebrationOverlay" class="celebration-overlay" role="dialog" aria-modal="true" aria-label="¡Vas muy bien!" aria-hidden="true">
+    <div class="celebration-confetti" aria-hidden="true">
+      <span></span><span></span><span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="celebration-card">
+      <button type="button" class="celebration-close" id="celebrationClose" aria-label="Cerrar">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+      <div class="celebration-trophy" aria-hidden="true">
+        <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M40 58 C30 58 22 50 22 40 V20 H58 V40 C58 50 50 58 40 58Z" fill="url(#celebGrad)" opacity="0.18"/>
+          <path d="M40 58 C30 58 22 50 22 40 V20 H58 V40 C58 50 50 58 40 58Z" stroke="url(#celebGrad)" stroke-width="2.5" fill="none"/>
+          <path d="M22 26 C14 26 14 38 22 38" stroke="url(#celebGrad)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+          <path d="M58 26 C66 26 66 38 58 38" stroke="url(#celebGrad)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+          <line x1="40" y1="58" x2="40" y2="64" stroke="url(#celebGrad)" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="32" y1="64" x2="48" y2="64" stroke="url(#celebGrad)" stroke-width="3" stroke-linecap="round"/>
+          <path d="M40 30 L41.8 35.5H47.5L42.9 38.7L44.7 44.2L40 41L35.3 44.2L37.1 38.7L32.5 35.5H38.2Z" fill="url(#celebGrad)"/>
+          <defs>
+            <linearGradient id="celebGrad" x1="0" y1="0" x2="80" y2="80" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#5729FF"/>
+              <stop offset="100%" stop-color="#CE0071"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <h2 class="celebration-title" id="celebrationTitle">¡Vas muy bien!</h2>
+      <p class="celebration-sub" id="celebrationSub">Tus bitácoras están al día 🎵 Tu constancia inspira.</p>
+      <div class="celebration-streak" id="celebrationStreak" hidden>
+        <span class="celebration-streak-icon">🔥</span>
+        <span id="celebrationStreakText">Racha de registro</span>
+      </div>
+      <div class="celebration-stats">
+        <div class="celebration-stat"><strong id="celebStatDone">0</strong><span>Bitácoras<br>subidas</span></div>
+        <div class="celebration-stat"><strong id="celebStatRate">0%</strong><span>Cumplimiento</span></div>
+        <div class="celebration-stat"><strong id="celebStatLabel">Muy bien</strong><span>Seguimiento<br>general</span></div>
+      </div>
+      <button type="button" class="btn primary celebration-cta" id="celebrationCta">¡Seguir así!</button>
+    </div>
+  </div>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/app.js?v=20260722b"></script>
 </body>
 </html>
