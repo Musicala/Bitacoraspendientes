@@ -3,12 +3,16 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 import {
   getFirestore,
   collection,
+  query,
+  where,
   doc,
   getDoc,
   getDocs,
@@ -30,10 +34,11 @@ const state = {
   results: [],
   filteredResults: [],
   personalView: false,
+  teacherTab: "inicio",
+  bitacoraSeg: "pending",
   teacherNamesByEmail: new Map(),
   teacherEmailsByName: new Map(),
   teacherCanonicalNames: [],
-  teacherLinksByKey: new Map(),
   teacherManualAliases: new Map(loadTeacherAliases()),
   catalogLoaded: false,
   catalogError: false,
@@ -50,6 +55,21 @@ const els = {
   fsaLoginBtn: document.querySelector("#fsaLoginBtn"),
   signOutBtn: document.querySelector("#signOutBtn"),
   connectionStatus: document.querySelector("#connectionStatus"),
+  connectionGuide: document.querySelector("#connectionGuide"),
+  authActions: document.querySelector(".auth-actions"),
+  topbar: document.querySelector(".topbar"),
+  tabbar: document.querySelector("#tabbar"),
+  tabbarPending: document.querySelector("#tabbarPending"),
+  settingsPanel: document.querySelector("#settingsPanel"),
+  settingsSlot: document.querySelector("#settingsSlot"),
+  bitacoraSeg: document.querySelector("#bitacoraSeg"),
+  rankingCard: document.querySelector("#rankingCard"),
+  rankingPos: document.querySelector("#rankingPos"),
+  rankingTotal: document.querySelector("#rankingTotal"),
+  rankingPhrase: document.querySelector("#rankingPhrase"),
+  rankingMedal: document.querySelector("#rankingMedal"),
+  rankingRateChip: document.querySelector("#rankingRateChip"),
+  rankingPodium: document.querySelector("#rankingPodium"),
   loadDataBtn: document.querySelector("#loadDataBtn"),
   runDemoBtn: document.querySelector("#runDemoBtn"),
   clearFiltersBtn: document.querySelector("#clearFiltersBtn"),
@@ -77,9 +97,6 @@ const els = {
   kpiReview: document.querySelector("#kpiReview"),
   kpiRate: document.querySelector("#kpiRate"),
   teacherKpis: document.querySelector("#teacherKpis"),
-  teacherLinksNotice: document.querySelector("#teacherLinksNotice"),
-  teacherLinksPending: document.querySelector("#teacherLinksPending"),
-  teacherLinksSaved: document.querySelector("#teacherLinksSaved"),
   classGroups: document.querySelector("#classGroups"),
   resultsBody: document.querySelector("#resultsBody"),
   lastUpdate: document.querySelector("#lastUpdate"),
@@ -89,6 +106,47 @@ const els = {
   exportExpandedBtn: document.querySelector("#exportExpandedBtn"),
   syncExpectedBtn: document.querySelector("#syncExpectedBtn"),
   toast: document.querySelector("#toast"),
+  // Onboarding
+  onboardingModal: document.querySelector("#onboardingModal"),
+  onbStep1: document.querySelector("#onbStep1"),
+  onbStep2: document.querySelector("#onbStep2"),
+  onbStep3: document.querySelector("#onbStep3"),
+  onbRipBtn: document.querySelector("#onbRipBtn"),
+  onbBitacorasBtn: document.querySelector("#onbBitacorasBtn"),
+  onbFsaBtn: document.querySelector("#onbFsaBtn"),
+  onbEnterBtn: document.querySelector("#onbEnterBtn"),
+  onbDemoBtn: document.querySelector("#onbDemoBtn"),
+  onbEnterLabel: document.querySelector(".onb-enter-label"),
+  // Streak
+  streakWidget: document.querySelector("#streakWidget"),
+  streakTrophyBadge: document.querySelector("#streakTrophyBadge"),
+  streakTrophyTitle: document.querySelector("#streakTrophyTitle"),
+  streakTrophyDesc: document.querySelector("#streakTrophyDesc"),
+  streakIcon: document.querySelector("#streakIcon"),
+  streakFlameWrap: document.querySelector("#streakFlameWrap"),
+  streakDaysNum: document.querySelector("#streakDaysNum"),
+  streakDaysSub: document.querySelector("#streakDaysSub"),
+  streakRateArc: document.querySelector("#streakRateArc"),
+  streakRateNum: document.querySelector("#streakRateNum"),
+  streakRateSub: document.querySelector("#streakRateSub"),
+  // Progreso docente (Te faltan N)
+  tpTabs: document.querySelector("#tpTabs"),
+  teacherProgress: document.querySelector("#teacherProgress"),
+  tpRemaining: document.querySelector("#tpRemaining"),
+  tpSub: document.querySelector("#tpSub"),
+  tpTrack: document.querySelector("#tpTrack"),
+  tpFill: document.querySelector("#tpFill"),
+  tpDots: document.querySelector("#tpDots"),
+  // Celebración
+  celebrationOverlay: document.querySelector("#celebrationOverlay"),
+  celebrationClose: document.querySelector("#celebrationClose"),
+  celebrationCta: document.querySelector("#celebrationCta"),
+  celebrationSub: document.querySelector("#celebrationSub"),
+  celebrationStreak: document.querySelector("#celebrationStreak"),
+  celebrationStreakText: document.querySelector("#celebrationStreakText"),
+  celebStatDone: document.querySelector("#celebStatDone"),
+  celebStatRate: document.querySelector("#celebStatRate"),
+  celebStatLabel: document.querySelector("#celebStatLabel"),
 };
 
 const firebase = createFirebaseClients();
@@ -96,6 +154,8 @@ setDefaultDates();
 positionTeacherSummary();
 bindEvents();
 listenAuth();
+handleRedirectResults();
+initOnboarding();
 renderConnectionStatus();
 
 function createFirebaseClients() {
@@ -143,6 +203,10 @@ function bindEvents() {
   els.bitacorasLoginBtn.addEventListener("click", () => loginProject("bitacoras"));
   els.fsaLoginBtn.addEventListener("click", () => loginProject("fsa"));
   els.signOutBtn.addEventListener("click", signOutBoth);
+  els.connectionGuide?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-login-project]");
+    if (button) loginProject(button.dataset.loginProject);
+  });
   els.loadDataBtn.addEventListener("click", () => loadRealData({ force: true }));
   els.runDemoBtn.addEventListener("click", runDemo);
   els.exportCsvBtn.addEventListener("click", exportCsv);
@@ -155,11 +219,31 @@ function bindEvents() {
   [els.teacherFilter, els.studentFilter, els.statusFilter, els.sortFilter]
     .forEach((el) => el.addEventListener("input", debounce(applyFiltersAndRender, 220)));
 
+  // Tabs de rango rápido para docentes (Hoy / Semana / Todas)
+  els.tpTabs?.addEventListener("click", onRangeTabClick);
+
+  // Menú inferior tipo app (Inicio / Bitácoras / Ajustes)
+  els.tabbar?.addEventListener("click", (event) => {
+    const btn = event.target.closest(".tabbar-btn");
+    if (btn) setTeacherTab(btn.dataset.goto);
+  });
+
+  // Segmento Pendientes / Subidas dentro de Bitácoras
+  els.bitacoraSeg?.addEventListener("click", (event) => {
+    const btn = event.target.closest(".bita-seg-btn");
+    if (btn) setBitacoraSegment(btn.dataset.seg);
+  });
+
+  // Celebración
+  els.celebrationClose?.addEventListener("click", closeCelebration);
+  els.celebrationCta?.addEventListener("click", closeCelebration);
+  els.celebrationOverlay?.addEventListener("click", (event) => {
+    if (event.target === els.celebrationOverlay) closeCelebration();
+  });
+
   // Delegación: chips de atención, tarjetas de docente y filas de la tabla.
   els.attentionChips.addEventListener("click", onAttentionChipClick);
   els.teacherKpis.addEventListener("click", onTeacherCardClick);
-  els.teacherLinksPending.addEventListener("change", onTeacherLinkChange);
-  els.teacherLinksSaved.addEventListener("change", onTeacherLinkChange);
   els.classGroups.addEventListener("click", onClassGroupClick);
   els.resultsBody.addEventListener("click", onResultRowClick);
   els.resultsBody.addEventListener("keydown", (event) => {
@@ -218,37 +302,6 @@ function onTeacherCardClick(event) {
   applyFiltersAndRender();
 }
 
-async function onTeacherLinkChange(event) {
-  const select = event.target.closest("select[data-teacher-key]");
-  if (!select || !getAccessContext().isAdmin) return;
-  const key = select.dataset.teacherKey;
-  const name = select.dataset.teacherName || key;
-  const email = select.value.trim().toLowerCase();
-  if (!key || !email) return;
-
-  select.disabled = true;
-  try {
-    const link = { nombre: name, email, updatedAtClient: new Date().toISOString() };
-    await setDoc(doc(firebase.bitacoras.db, "app_config", COLLECTIONS.teacherLinksConfig), {
-      links: { [key]: link },
-    }, { merge: true });
-    const previousLink = state.teacherLinksByKey.get(key);
-    if (previousLink?.email && previousLink.email !== email) {
-      state.teacherNamesByEmail.get(previousLink.email)?.delete(key);
-    }
-    state.teacherLinksByKey.set(key, link);
-    applyTeacherLinksToCatalog();
-    reconcileAndRender();
-    toast(`Vínculo guardado: ${name} → ${email}.`, "success");
-  } catch (error) {
-    console.error(error);
-    toast("No se pudo guardar el vínculo. Verifica tus permisos en Bitácoras.", "error");
-    renderTeacherLinks(state.expectedRows);
-  } finally {
-    select.disabled = false;
-  }
-}
-
 function onResultRowClick(event) {
   const row = event.target.closest("tr[data-result-index]");
   if (!row) return;
@@ -270,23 +323,26 @@ function listenAuth() {
   onAuthStateChanged(firebase.rip.auth, (user) => {
     state.ripUser = user;
     renderConnectionStatus();
+    updateOnboardingSteps();
     autoLoadDataWhenReady();
   });
   onAuthStateChanged(firebase.bitacoras.auth, (user) => {
     state.bitacorasUser = user;
     renderConnectionStatus();
+    updateOnboardingSteps();
     autoLoadDataWhenReady();
   });
   onAuthStateChanged(firebase.fsa.auth, (user) => {
     state.fsaUser = user;
     renderConnectionStatus();
+    updateOnboardingSteps();
     autoLoadDataWhenReady();
   });
 }
 
 function autoLoadDataWhenReady() {
   if (!state.ripUser || !state.bitacorasUser) return;
-  const userKey = `${state.ripUser.uid || state.ripUser.email}|${state.bitacorasUser.uid || state.bitacorasUser.email}|${state.fsaUser?.uid || "sin-fsa"}`;
+  const userKey = `${state.ripUser?.uid || state.ripUser?.email || "sin-rip"}|${state.bitacorasUser.uid || state.bitacorasUser.email}|${state.fsaUser?.uid || "sin-fsa"}`;
   if (state.loadingData) {
     state.pendingAutoLoad = state.loadedForUsers !== userKey;
     return;
@@ -301,6 +357,11 @@ function autoLoadDataWhenReady() {
 async function loginProject(projectKey) {
   try {
     const client = firebase[projectKey];
+    if (shouldUseRedirectLogin()) {
+      sessionStorage.setItem("musicala-pending-login-project", projectKey);
+      await signInWithRedirect(client.auth, client.provider);
+      return;
+    }
     const result = await signInWithPopup(client.auth, client.provider);
     const email = result.user?.email || "";
     if (!ADMIN_EMAILS.includes(email.toLowerCase())) {
@@ -311,8 +372,42 @@ async function loginProject(projectKey) {
     }
   } catch (error) {
     console.error(error);
-    toast("No se pudo conectar. Intenta de nuevo o verifica tu acceso.", "error");
+    toast(loginErrorMessage(error), "error");
   }
+}
+
+async function handleRedirectResults() {
+  const projectKeys = ["rip", "bitacoras", "fsa"];
+  for (const projectKey of projectKeys) {
+    try {
+      const result = await getRedirectResult(firebase[projectKey].auth);
+      if (!result?.user) continue;
+      sessionStorage.removeItem("musicala-pending-login-project");
+      const label = projectKey === "rip" ? "RIP" : projectKey === "bitacoras" ? "Bitácoras" : "FSA";
+      toast(`Conectado a ${label} como ${result.user.email || "tu cuenta"}.`, "success");
+      break;
+    } catch (error) {
+      console.error(error);
+      sessionStorage.removeItem("musicala-pending-login-project");
+      toast(loginErrorMessage(error), "error");
+      break;
+    }
+  }
+}
+
+function shouldUseRedirectLogin() {
+  return /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+    /WhatsApp|FBAN|FBAV|Instagram/i.test(navigator.userAgent);
+}
+
+function loginErrorMessage(error) {
+  if (error?.code === "auth/unauthorized-domain") {
+    return "Falta autorizar musicala.github.io en Firebase Authentication > Settings > Authorized domains.";
+  }
+  if (error?.code === "auth/popup-blocked" || error?.code === "auth/cancelled-popup-request") {
+    return "El navegador bloqueó la ventana de acceso. Abre el enlace en Safari o Chrome e inténtalo de nuevo.";
+  }
+  return "No se pudo iniciar sesión. Abre el enlace en Safari o Chrome e inténtalo de nuevo.";
 }
 
 async function signOutBoth() {
@@ -332,6 +427,8 @@ async function signOutBoth() {
   renderTeacherKpis([]);
   renderAttention([]);
   updateFilterCount();
+  // Al cerrar sesión, mostrar el modal de onboarding de nuevo
+  openOnboarding();
   toast("Sesiones cerradas.", "info");
 }
 
@@ -343,6 +440,16 @@ function renderConnectionStatus() {
   ].join("");
   renderPersonalViewControl();
   applyRoleUi();
+  renderConnectionGuide();
+}
+
+function renderConnectionGuide() {
+  if (!els.connectionGuide) return;
+  const ripStep = els.connectionGuide.querySelector('[data-login-project="rip"]');
+  const bitacorasStep = els.connectionGuide.querySelector('[data-login-project="bitacoras"]');
+  ripStep?.classList.toggle("is-connected", Boolean(state.ripUser));
+  bitacorasStep?.classList.toggle("is-connected", Boolean(state.bitacorasUser));
+  els.connectionGuide.hidden = Boolean(state.ripUser && state.bitacorasUser);
 }
 
 function connectionPill(label, email) {
@@ -362,8 +469,146 @@ function shortEmail(email) {
 
 function applyRoleUi() {
   const access = getAccessContext();
-  document.body.classList.toggle("teacher-view", !access.isAdmin);
+  const isTeacher = !access.isAdmin;
+  document.body.classList.toggle("teacher-view", isTeacher);
   document.body.classList.toggle("admin-view", access.isAdmin);
+
+  // Menú inferior tipo app solo para docentes
+  if (els.tabbar) els.tabbar.hidden = !isTeacher;
+  if (els.bitacoraSeg) els.bitacoraSeg.hidden = !isTeacher;
+
+  // Reubica el estado de conexión y las acciones de cuenta:
+  // en docente van al panel de Ajustes; en admin, de vuelta a la topbar.
+  moveAccountControls(isTeacher);
+
+  // Aplica la pestaña activa (o limpia el estado de pestañas en admin)
+  if (isTeacher) {
+    applyTeacherTab();
+    syncBitacoraSegmentButtons();
+  } else {
+    document.querySelectorAll("[data-tab].tab-off").forEach((el) => el.classList.remove("tab-off"));
+  }
+}
+
+/**
+ * Mueve #connectionStatus y .auth-actions al panel de Ajustes (docente)
+ * o de vuelta a la topbar (admin). Los listeners viven en los elementos,
+ * así que moverlos no rompe nada.
+ */
+function moveAccountControls(toSettings) {
+  if (!els.settingsSlot || !els.connectionStatus || !els.authActions) return;
+  const inSettings = els.settingsSlot.contains(els.connectionStatus);
+  if (toSettings && !inSettings) {
+    els.settingsSlot.append(els.connectionStatus, els.authActions);
+  } else if (!toSettings && inSettings) {
+    // Reinsertar en la topbar en su orden original (antes: spacer, conn, auth)
+    els.topbar?.append(els.connectionStatus, els.authActions);
+  }
+}
+
+/** Cambia de pestaña por interacción del usuario (con scroll al inicio). */
+function setTeacherTab(tab) {
+  const valid = ["inicio", "bitacoras", "settings"];
+  state.teacherTab = valid.includes(tab) ? tab : "inicio";
+  applyTeacherTab();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+/** Aplica visualmente la pestaña activa sin hacer scroll (uso interno en render). */
+function applyTeacherTab() {
+  const next = state.teacherTab;
+  document.body.setAttribute("data-teacher-tab", next);
+  document.querySelectorAll("[data-tab]").forEach((el) => {
+    el.classList.toggle("tab-off", el.dataset.tab !== next);
+  });
+  els.tabbar?.querySelectorAll(".tabbar-btn").forEach((btn) => {
+    const active = btn.dataset.goto === next;
+    btn.classList.toggle("is-active", active);
+    if (active) btn.setAttribute("aria-current", "page");
+    else btn.removeAttribute("aria-current");
+  });
+}
+
+/** Alterna entre bitácoras Pendientes / Subidas (usa el statusFilter). */
+function setBitacoraSegment(seg) {
+  state.bitacoraSeg = seg === "uploaded" ? "uploaded" : "pending";
+  els.statusFilter.value = state.bitacoraSeg;
+  syncBitacoraSegmentButtons();
+  applyFiltersAndRender();
+}
+
+function syncBitacoraSegmentButtons() {
+  els.bitacoraSeg?.querySelectorAll(".bita-seg-btn").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.seg === state.bitacoraSeg);
+  });
+}
+
+/**
+ * Concurso: ubica al docente en el ranking de cumplimiento de TODOS los
+ * docentes (usa el dataset completo en memoria) y muestra una frase.
+ */
+function renderRanking(allResults) {
+  if (!els.rankingCard) return;
+  const access = getAccessContext();
+  if (access.isAdmin) { els.rankingCard.hidden = true; return; }
+
+  const ranked = buildTeacherSummaries(allResults)
+    .filter((t) => t.expected > 0)
+    .sort((a, b) => b.rate - a.rate || a.missing - b.missing || b.classes - a.classes);
+
+  const myIndex = ranked.findIndex((t) => access.teacherKeys.has(t.key));
+  if (myIndex === -1 || ranked.length === 0) { els.rankingCard.hidden = true; return; }
+
+  const me = ranked[myIndex];
+  const pos = myIndex + 1;
+  const total = ranked.length;
+  els.rankingCard.hidden = false;
+
+  const medals = { 1: "🥇", 2: "🥈", 3: "🥉" };
+  els.rankingMedal.textContent = medals[pos] || (pos <= Math.ceil(total / 2) ? "🎵" : "🎯");
+  els.rankingPos.textContent = `#${pos}`;
+  els.rankingTotal.textContent = `de ${total}`;
+  els.rankingRateChip.textContent = `${me.rate}%`;
+  els.rankingPhrase.textContent = rankingPhrase(pos, total, me);
+
+  // Mini podio: top 3 + tú si no estás en el podio
+  const podium = ranked.slice(0, 3).map((t, i) => ({ t, place: i + 1 }));
+  if (pos > 3) podium.push({ t: me, place: pos });
+  els.rankingPodium.hidden = total < 2;
+  els.rankingPodium.innerHTML = podium.map(({ t, place }) => {
+    const mine = access.teacherKeys.has(t.key);
+    const medal = medals[place] || `#${place}`;
+    return `<span class="ranking-podium-item ${mine ? "is-me" : ""}">${medal} <b>${escapeHtml(mine ? "Tú" : firstNameOf(t.name))}</b> · ${t.rate}%</span>`;
+  }).join("");
+}
+
+function firstNameOf(name) {
+  const clean = String(name || "").trim();
+  return clean ? clean.split(/\s+/)[0] : "Docente";
+}
+
+/** Frase bonita o chistosa según el puesto. */
+function rankingPhrase(pos, total, me) {
+  if (total === 1) return "Eres el único por ahora, ¡lidera con el ejemplo! 👑";
+  if (pos === 1) return "¡Eres el #1! 🎉 Nadie sube bitácoras como tú.";
+  if (pos === 2) return "¡Casi en la cima! Un empujoncito y tomas la corona. 👑";
+  if (pos === 3) return "¡Podio! Estás entre los 3 mejores. 🔥";
+  if (pos <= Math.ceil(total / 2)) return "Vas en la mitad de arriba, ¡sigue trepando! 💪";
+  if (pos === total) return "Alguien tiene que ir de último... ¡hoy empiezas a subir! 😅🚀";
+  return "Cada bitácora te acerca al podio, ¡tú puedes! 🚀";
+}
+
+/** Badge de pendientes en el menú inferior (Bitácoras). */
+function updateTabbarBadge(allResults) {
+  if (!els.tabbarPending) return;
+  const access = getAccessContext();
+  if (access.isAdmin) { els.tabbarPending.hidden = true; return; }
+  const pending = allResults.filter((item) => {
+    const tk = item.expected?.profesorKey || item.bitacora?.profesorKey || "";
+    return access.teacherKeys.has(tk) && ["faltante", "parcial_grupal", "revisar"].includes(item.status);
+  }).length;
+  els.tabbarPending.hidden = pending === 0;
+  els.tabbarPending.textContent = pending > 99 ? "99+" : String(pending);
 }
 
 function renderPersonalViewControl() {
@@ -388,10 +633,15 @@ function togglePersonalView() {
 
 async function loadRealData({ force = true, userKey = "" } = {}) {
   if (!state.ripUser || !state.bitacorasUser) {
-    toast("Conecta RIP y Bitácoras antes de cargar la información.", "info");
+    toast("Conecta Bitácoras antes de cargar la información.", "info");
     return;
   }
-  const currentUserKey = userKey || `${state.ripUser.uid || state.ripUser.email}|${state.bitacorasUser.uid || state.bitacorasUser.email}|${state.fsaUser?.uid || "sin-fsa"}`;
+  const isAdmin = isAdminEmail(state.bitacorasUser.email || state.ripUser?.email);
+  if (isAdmin && !state.ripUser) {
+    toast("Conecta RIP y Bitácoras antes de cargar la información administrativa.", "info");
+    return;
+  }
+  const currentUserKey = userKey || `${state.ripUser?.uid || state.ripUser?.email || "sin-rip"}|${state.bitacorasUser.uid || state.bitacorasUser.email}|${state.fsaUser?.uid || "sin-fsa"}`;
   if (state.loadingData || (!force && state.loadedForUsers === currentUserKey)) return;
   state.loadingData = true;
   setLoading(true);
@@ -403,8 +653,7 @@ async function loadRealData({ force = true, userKey = "" } = {}) {
       loadCollection(firebase.bitacoras.db, COLLECTIONS.bitacorasStudents),
       loadFsaClassLogs(),
     ]);
-    await Promise.all([loadTeacherCatalog(), loadTeacherLinks()]);
-    applyTeacherLinksToCatalog();
+    await loadTeacherCatalog();
     state.ripRows = ripRows;
     state.bitacorasRows = bitacorasRows;
     state.bitacorasStudents = students;
@@ -424,6 +673,75 @@ async function loadRealData({ force = true, userKey = "" } = {}) {
       autoLoadDataWhenReady();
     }
   }
+}
+
+async function loadTeacherExpectedClassLogs(email) {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  if (!normalizedEmail) return [];
+  const expectedQuery = query(
+    collection(firebase.bitacoras.db, COLLECTIONS.expectedClassLogs),
+    where("profesorEmail", "==", normalizedEmail)
+  );
+  const snap = await getDocs(expectedQuery);
+  return snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+}
+
+function renderTeacherExpectedClassLogs(rows) {
+  const results = rows.map((row) => {
+    const status = normalizeExpectedStatus(row.reconciliationStatus);
+    return {
+      type: "expected",
+      status,
+      statusLabel: row.reconciliationLabel || statusLabel(status),
+      expected: {
+        expectedDocId: row.expectedDocId || row.id,
+        ripRegistroId: row.ripRegistroId || "",
+        fecha: row.fecha || "",
+        hora: row.hora || "",
+        profesor: row.profesorNombre || "",
+        profesorKey: row.profesorKey || "",
+        profesorEmail: row.profesorEmail || "",
+        estudiante: row.estudianteNombre || "",
+        estudianteKey: row.estudianteKey || "",
+        contadorClase: row.contadorClase || null,
+        classLogKey: row.classLogKey || "",
+        servicioOriginal: row.servicioOriginal || "Clase",
+      },
+      bitacora: row.matchedBitacoraId ? { bitacoraId: row.matchedBitacoraId, title: "Bitácora vinculada" } : null,
+      notes: row.reconciliationNotes || "Clase asignada desde RIP.",
+    };
+  });
+  state.ripRows = [];
+  state.bitacorasRows = [];
+  state.bitacorasStudents = [];
+  state.fsaClassLogs = [];
+  state.expectedRows = results.map((item) => item.expected);
+  state.expandedLogs = [];
+  state.results = results;
+  applyFiltersAndRender();
+  els.lastUpdate.textContent = results.length
+    ? `Actualizado ${new Date().toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}`
+    : "No tienes clases pendientes en este periodo";
+}
+
+function normalizeExpectedStatus(value) {
+  const status = String(value || "faltante").trim().toLowerCase();
+  return ["ok", "faltante", "parcial_grupal", "revisar", "duplicada", "profe_distinto", "hora_diferente", "extra"].includes(status)
+    ? status
+    : "faltante";
+}
+
+function statusLabel(status) {
+  return {
+    ok: "Bitácora completa",
+    faltante: "Falta bitácora",
+    parcial_grupal: "Falta en grupal",
+    revisar: "Necesita revisión",
+    duplicada: "Duplicada",
+    profe_distinto: "Docente distinto",
+    hora_diferente: "Hora diferente",
+    extra: "Sin clase en RIP",
+  }[status] || "Falta bitácora";
 }
 
 async function loadCollection(db, collectionName) {
@@ -472,29 +790,6 @@ async function loadTeacherCatalog() {
   }
 }
 
-async function loadTeacherLinks() {
-  state.teacherLinksByKey = new Map();
-  try {
-    const snapshot = await getDoc(doc(firebase.bitacoras.db, "app_config", COLLECTIONS.teacherLinksConfig));
-    const links = snapshot.exists() ? snapshot.data()?.links || {} : {};
-    Object.entries(links).forEach(([key, value]) => {
-      const email = String(value?.email || "").trim().toLowerCase();
-      if (email) state.teacherLinksByKey.set(key, { ...value, email });
-    });
-  } catch (error) {
-    console.warn("No se pudieron cargar los vínculos de docentes:", error);
-  }
-}
-
-function applyTeacherLinksToCatalog() {
-  state.teacherLinksByKey.forEach((link, key) => {
-    const names = state.teacherNamesByEmail.get(link.email) || new Set();
-    names.add(key);
-    state.teacherNamesByEmail.set(link.email, names);
-    state.teacherEmailsByName.set(key, link.email);
-  });
-}
-
 async function runDemo() {
   const [ripRows, bitacorasRows] = await Promise.all([
     fetchJson("data/sample-rip.json"),
@@ -532,11 +827,13 @@ function reconcileAndRender() {
   const summaryResults = filterResults(results, { ignoreStatus: true });
   renderKpis(summaryResults, state.filteredResults);
   renderTeacherKpis(summaryResults);
-  renderTeacherLinks(expected);
   renderResults(state.filteredResults);
   renderAttention(state.results);
   updateFilterCount();
   updateTeacherGreeting(state.filteredResults);
+  renderStreakWidget(state.results);
+  renderRanking(state.results);
+  updateTabbarBadge(state.results);
   els.lastUpdate.textContent = results.length
     ? `Actualizado ${new Date().toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}`
     : "Sin datos todavía";
@@ -548,12 +845,15 @@ function applyFiltersAndRender() {
   const summaryResults = filterResults(state.results, { ignoreStatus: true });
   renderKpis(summaryResults, state.filteredResults);
   renderTeacherKpis(summaryResults);
-  renderTeacherLinks(state.expectedRows);
   renderResults(state.filteredResults);
   renderAttention(state.results);
   updateFilterCount();
   updateTeacherGreeting(state.filteredResults);
+  renderStreakWidget(state.results);
+  renderRanking(state.results);
+  updateTabbarBadge(state.results);
 }
+
 
 // Cuenta cuántos filtros están activos y lo muestra junto al título.
 function updateFilterCount() {
@@ -614,15 +914,358 @@ function updateTeacherGreeting(results) {
   const expectedItems = results.filter((item) => item.type === "expected");
   const pending = expectedItems.filter((item) => ["faltante", "parcial_grupal", "revisar"].includes(item.status)).length;
   if (!expectedItems.length) {
-    els.teacherGreetingTitle.textContent = "Hola 👋 Aún no hay clases cargadas";
-    els.teacherGreetingSub.textContent = "Carga la información para ver tus clases y pendientes.";
+    els.teacherGreetingTitle.textContent = "Hola 👋";
+    els.teacherGreetingSub.textContent = "Aquí verás tus clases y pendientes.";
   } else if (pending === 0) {
     els.teacherGreetingTitle.textContent = "¡Vas al día! 🎉";
-    els.teacherGreetingSub.textContent = "No tienes bitácoras pendientes en este periodo. Gracias por mantenerlo al día.";
+    els.teacherGreetingSub.textContent = "Sin pendientes por ahora.";
   } else {
-    els.teacherGreetingTitle.textContent = `Tienes ${pending} clase${pending === 1 ? "" : "s"} por resolver`;
-    els.teacherGreetingSub.textContent = "Empieza por lo pendiente; es cuestión de minutos.";
+    els.teacherGreetingTitle.textContent = `📌 ${pending} por resolver`;
+    els.teacherGreetingSub.textContent = "Toca una clase y regístrala.";
   }
+}
+
+// =====================================================================
+// ONBOARDING MODAL
+// =====================================================================
+
+function initOnboarding() {
+  if (!els.onboardingModal) return;
+  // Vincular botones del onboarding
+  els.onbRipBtn?.addEventListener("click", async () => {
+    await loginProject("rip");
+    updateOnboardingSteps();
+  });
+  els.onbBitacorasBtn?.addEventListener("click", async () => {
+    await loginProject("bitacoras");
+    updateOnboardingSteps();
+  });
+  els.onbFsaBtn?.addEventListener("click", async () => {
+    await loginProject("fsa");
+    updateOnboardingSteps();
+  });
+  els.onbEnterBtn?.addEventListener("click", closeOnboarding);
+  els.onbDemoBtn?.addEventListener("click", async () => {
+    closeOnboarding();
+    await runDemo();
+  });
+
+  // El onboarding se muestra al inicio; listenAuth lo irá actualizando
+  // Mostrarlo directamente ya que no hay sesión todavía
+  openOnboarding();
+}
+
+function openOnboarding() {
+  if (!els.onboardingModal) return;
+  els.onboardingModal.setAttribute("aria-hidden", "false");
+  document.body.style.overflow = "hidden";
+}
+
+function closeOnboarding() {
+  if (!els.onboardingModal) return;
+  els.onboardingModal.setAttribute("aria-hidden", "true");
+  document.body.style.overflow = "";
+}
+
+function updateOnboardingSteps() {
+  if (!els.onboardingModal) return;
+
+  const ripDone = Boolean(state.ripUser);
+  const bitacorasDone = Boolean(state.bitacorasUser);
+  const fsaDone = Boolean(state.fsaUser);
+
+  // Si ambas conexiones principales están activas al cargar (sesión restaurada),
+  // cerrar el modal automáticamente sin que el usuario deba hacer clic
+  if (ripDone && bitacorasDone) {
+    closeOnboarding();
+  }
+
+  // Actualizar estado visual de cada paso
+  els.onbStep1?.classList.toggle("is-done", ripDone);
+  els.onbStep2?.classList.toggle("is-done", bitacorasDone);
+  els.onbStep3?.classList.toggle("is-done", fsaDone);
+
+  // Habilitar botón entrar
+  const canEnter = ripDone && bitacorasDone;
+  if (els.onbEnterBtn) {
+    els.onbEnterBtn.disabled = !canEnter;
+    if (els.onbEnterLabel) {
+      els.onbEnterLabel.textContent = canEnter
+        ? "¡Entrar a mis bitácoras!"
+        : !ripDone
+          ? "Conecta RIP para continuar"
+          : "Conecta Bitácoras para continuar";
+    }
+  }
+}
+
+// =====================================================================
+// STREAK WIDGET
+// =====================================================================
+
+function renderStreakWidget(allResults) {
+  const access = getAccessContext();
+  if (!els.streakWidget) return;
+
+  // Solo visible en vista docente
+  if (access.isAdmin) {
+    els.streakWidget.hidden = true;
+    if (els.tpTabs) els.tpTabs.hidden = true;
+    if (els.teacherProgress) els.teacherProgress.hidden = true;
+    return;
+  }
+  els.streakWidget.hidden = false;
+
+  // ⚠️ CLAVE: filtrar SOLO las clases de este docente (sin filtro de estado)
+  // para que los números correspondan a sus propios registros, no a todos los profes.
+  const results = filterResults(allResults, { ignoreStatus: true });
+
+  // --- Copa: pendientes de la semana actual ---
+  const todayStr = todayKey();
+  const weekStart = weekStartKey(todayStr);
+  const weekEnd = weekEndKey(todayStr);
+
+  const thisWeekExpected = results.filter((item) => {
+    if (item.type !== "expected" || !item.expected) return false;
+    const fecha = item.expected.fecha;
+    return fecha >= weekStart && fecha <= weekEnd;
+  });
+  const thisWeekPending = thisWeekExpected.filter((item) =>
+    ["faltante", "parcial_grupal", "revisar"].includes(item.status)
+  ).length;
+  const thisWeekTotal = thisWeekExpected.length;
+
+  if (els.streakTrophyBadge) {
+    els.streakTrophyBadge.textContent = thisWeekPending;
+    els.streakTrophyBadge.classList.toggle("is-zero", thisWeekPending === 0);
+  }
+  if (els.streakTrophyTitle) {
+    els.streakTrophyTitle.textContent = thisWeekPending === 0
+      ? "¡Al día esta semana!"
+      : `${thisWeekPending} pendiente${thisWeekPending === 1 ? "" : "s"} esta semana`;
+  }
+  if (els.streakTrophyDesc) {
+    const done = thisWeekTotal - thisWeekPending;
+    els.streakTrophyDesc.textContent = thisWeekPending === 0
+      ? `Semana perfecta 🎉 · ${done} clase${done === 1 ? "" : "s"}`
+      : `${done} de ${thisWeekTotal} listas esta semana`;
+  }
+
+  // --- Racha de días: días únicos con al menos 1 bitácora subida (solo las del profe) ---
+  const streak = computeDayStreak(results);
+  const prevStreak = Number(localStorage.getItem("musicala-streak-best") || 0);
+  if (streak > prevStreak) {
+    localStorage.setItem("musicala-streak-best", String(streak));
+  }
+
+  // Tipo de racha
+  let icon, cls, sub;
+  if (streak === 0) {
+    icon = "💤"; cls = ""; sub = "Empieza tu racha hoy";
+  } else if (streak < 3) {
+    icon = "🔥"; cls = "is-fire"; sub = "¡Vas bien!";
+  } else if (streak < 7) {
+    icon = "⚡"; cls = "is-lightning"; sub = "¡Constancia de pro!";
+  } else {
+    icon = "💎"; cls = "is-diamond"; sub = "¡Leyenda Musicala!";
+  }
+
+  if (els.streakIcon) els.streakIcon.textContent = icon;
+  if (els.streakFlameWrap) {
+    els.streakFlameWrap.classList.toggle("is-active", streak > 0);
+  }
+  if (els.streakDaysSub) els.streakDaysSub.textContent = sub;
+
+  // Animar el número de días
+  if (els.streakDaysNum) {
+    els.streakDaysNum.className = `streak-days-num ${cls}`;
+    animateCounter(els.streakDaysNum, streak);
+  }
+
+  // --- Cumplimiento del periodo ---
+  const expectedItems = results.filter((item) => item.type === "expected");
+  const matched = expectedItems.filter((item) => ["ok", "duplicada", "hora_diferente"].includes(item.status)).length;
+  const rate = expectedItems.length ? Math.round((matched / expectedItems.length) * 100) : 0;
+
+  if (els.streakRateNum) els.streakRateNum.textContent = `${rate}%`;
+  if (els.streakRateSub) {
+    els.streakRateSub.textContent = `${matched} de ${expectedItems.length} clases`;
+  }
+  // Animar el arco SVG (circumference = 2π×20 ≈ 125.66)
+  if (els.streakRateArc) {
+    const offset = 125.66 * (1 - rate / 100);
+    els.streakRateArc.style.strokeDashoffset = String(offset);
+    els.streakRateArc.closest("[role=progressbar]")?.setAttribute("aria-valuenow", String(rate));
+  }
+
+  renderTeacherProgress(expectedItems);
+  maybeCelebrate(expectedItems, { rate, streak });
+}
+
+// =====================================================================
+// PROGRESO DOCENTE (Te faltan N) + TABS DE RANGO
+// =====================================================================
+
+function onRangeTabClick(event) {
+  const tab = event.target.closest(".tp-tab");
+  if (!tab) return;
+  const range = tab.dataset.range;
+  const today = todayKey();
+  if (range === "today") {
+    els.fromDate.value = today;
+    els.toDate.value = today;
+  } else if (range === "week") {
+    els.fromDate.value = weekStartKey(today);
+    els.toDate.value = weekEndKey(today);
+  } else {
+    setDefaultDates();
+  }
+  els.tpTabs.querySelectorAll(".tp-tab").forEach((el) => {
+    el.classList.toggle("is-active", el === tab);
+    el.setAttribute("aria-pressed", String(el === tab));
+  });
+  reconcileAndRender();
+}
+
+/**
+ * Barra de progreso estilo "Te faltan N": puntos por clase (máx. 12)
+ * y relleno proporcional a las bitácoras ya subidas del periodo visible.
+ */
+function renderTeacherProgress(expectedItems) {
+  const access = getAccessContext();
+  const show = !access.isAdmin && expectedItems.length > 0;
+  if (els.tpTabs) els.tpTabs.hidden = access.isAdmin;
+  if (!els.teacherProgress) return;
+  els.teacherProgress.hidden = !show;
+  if (!show) return;
+
+  const total = expectedItems.length;
+  const pending = expectedItems.filter((item) =>
+    ["faltante", "parcial_grupal", "revisar"].includes(item.status)
+  ).length;
+  const done = total - pending;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+
+  if (els.tpRemaining) els.tpRemaining.textContent = pending;
+  els.teacherProgress.classList.toggle("is-complete", pending === 0);
+  const title = els.teacherProgress.querySelector(".tp-title");
+  if (title) {
+    title.innerHTML = pending === 0
+      ? "¡Estás al día! 🎉"
+      : `Te falta${pending === 1 ? "" : "n"} <b id="tpRemaining">${pending}</b>`;
+  }
+  if (els.tpSub) {
+    els.tpSub.textContent = pending === 0
+      ? "Todas tus bitácoras del periodo están registradas."
+      : pending <= 2
+        ? "Te acercas a estar al día ✨"
+        : `${done} de ${total} listas · ¡Tú puedes!`;
+  }
+  if (els.tpFill) els.tpFill.style.width = `${pct}%`;
+  els.tpTrack?.setAttribute("aria-valuenow", String(pct));
+  if (els.tpDots) {
+    const dotCount = Math.min(total, 12);
+    const doneDots = total ? Math.round((done / total) * dotCount) : 0;
+    els.tpDots.innerHTML = Array.from({ length: dotCount }, (_, i) =>
+      `<span class="tp-dot ${i < doneDots ? "is-done" : ""}"></span>`
+    ).join("");
+  }
+}
+
+// =====================================================================
+// CELEBRACIÓN (¡Vas muy bien!)
+// =====================================================================
+
+function maybeCelebrate(expectedItems, { rate, streak }) {
+  const access = getAccessContext();
+  if (access.isAdmin || !expectedItems.length || !els.celebrationOverlay) return;
+  const pending = expectedItems.filter((item) =>
+    ["faltante", "parcial_grupal", "revisar"].includes(item.status)
+  ).length;
+  if (pending > 0) return;
+  // Solo celebrar una vez al día para no volverse repetitivo.
+  const seenKey = `musicala-celebrated-${todayKey()}`;
+  if (localStorage.getItem(seenKey)) return;
+  localStorage.setItem(seenKey, "1");
+  openCelebration({ done: expectedItems.length, rate, streak });
+}
+
+function openCelebration({ done, rate, streak }) {
+  if (els.celebStatDone) els.celebStatDone.textContent = done;
+  if (els.celebStatRate) els.celebStatRate.textContent = `${rate}%`;
+  if (els.celebStatLabel) {
+    els.celebStatLabel.textContent = rate >= 95 ? "Excelente" : rate >= 80 ? "Muy bien" : "Bien";
+  }
+  if (els.celebrationStreak) {
+    els.celebrationStreak.hidden = streak <= 0;
+    if (streak > 0 && els.celebrationStreakText) {
+      els.celebrationStreakText.textContent = `Racha de registro: ${streak} día${streak === 1 ? "" : "s"} seguido${streak === 1 ? "" : "s"}`;
+    }
+  }
+  els.celebrationOverlay.setAttribute("aria-hidden", "false");
+}
+
+function closeCelebration() {
+  els.celebrationOverlay?.setAttribute("aria-hidden", "true");
+}
+
+/**
+ * Calcula la racha de días consecutivos hacia atrás desde hoy en que
+ * el docente tiene al menos 1 bitácora subida (status ok, duplicada u hora_diferente).
+ */
+function computeDayStreak(results) {
+  // Recopilar días únicos con bitácora subida
+  const daysWithBitacora = new Set();
+  for (const item of results) {
+    if (["ok", "duplicada", "hora_diferente"].includes(item.status)) {
+      const fecha = item.expected?.fecha || item.bitacora?.fecha;
+      if (fecha) daysWithBitacora.add(fecha);
+    }
+  }
+  if (!daysWithBitacora.size) return 0;
+
+  let streak = 0;
+  let cursor = new Date(todayKey() + "T12:00:00Z");
+  // Buscar hacia atrás, máximo 90 días
+  for (let i = 0; i < 90; i++) {
+    const key = cursor.toISOString().slice(0, 10);
+    if (daysWithBitacora.has(key)) {
+      streak++;
+    } else if (streak > 0) {
+      // Rompió la racha
+      break;
+    }
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+  }
+  return streak;
+}
+
+/**
+ * Devuelve el último día (domingo) de la semana que empieza en weekStart.
+ */
+function weekEndKey(dateKey) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey || "")) return "";
+  const date = new Date(`${dateKey}T12:00:00Z`);
+  const daysFromMonday = (date.getUTCDay() + 6) % 7;
+  const monday = new Date(date);
+  monday.setUTCDate(date.getUTCDate() - daysFromMonday);
+  const sunday = new Date(monday);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  return sunday.toISOString().slice(0, 10);
+}
+
+/** Anima un número del 0 al target en ~600 ms */
+function animateCounter(el, target) {
+  const duration = 600;
+  const start = performance.now();
+  const from = Number(el.textContent) || 0;
+  function tick(now) {
+    const t = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+    el.textContent = String(Math.round(from + (target - from) * eased));
+    if (t < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
 }
 
 function buildExpectedRows(rows, options = {}) {
@@ -654,10 +1297,10 @@ function buildExpectedRows(rows, options = {}) {
 
 function normalizeRipRow(row) {
   const estudiante = firstText(row.estudiante, row.name, row.nombre, row.studentName);
+  const estudianteId = firstText(row.studentId, row.estudianteId, row.studentRef, row.alumnoId, row.student?.id);
   const profesorOriginal = firstText(row.profesor, row.docente, row.teacherName, row.teacher);
   const profesor = canonicalTeacherName(profesorOriginal);
   const profesorKey = canonicalTeacherKey(profesorOriginal || row.profesorKey || row.teacherKey);
-  const linkedTeacherEmail = state.teacherLinksByKey.get(profesorKey)?.email || state.teacherEmailsByName.get(profesorKey) || "";
   const fecha = toDateKey(row.fecha || row.fechaRaw || row.date || row.fechaClase || row.fechaTs || row.createdAt);
   const hora = toTimeKey(row.hora || row.hour || row.time || "");
   return {
@@ -669,9 +1312,11 @@ function normalizeRipRow(row) {
     tipo: firstText(row.tipo, row.type),
     estudiante,
     estudianteKey: normalizeKey(row.estudianteKey || row.studentKey || estudiante),
+    estudianteId,
+    studentCanonicalIds: canonicalStudentIds(estudianteId, row.estudianteKey, row.studentKey, estudiante),
     profesor,
     profesorKey,
-    profesorEmail: firstText(row.profesorEmail, row.emailProfesor, row.teacherEmail, linkedTeacherEmail).toLowerCase(),
+    profesorEmail: firstText(row.profesorEmail, row.emailProfesor, row.teacherEmail).toLowerCase(),
     servicioOriginal: firstText(row.servicio, row.process, row.proceso),
     duplicateReview: Boolean(row.duplicateReview || row.isDuplicate || row.duplicada),
   };
@@ -682,10 +1327,19 @@ function expandBitacoras(bitacoras, students) {
   const expanded = [];
 
   for (const bitacora of bitacoras) {
-    const serviceLabel = firstText(bitacora.servicio, bitacora.service, bitacora.proceso, bitacora.processLabel, bitacora.process?.processLabel, bitacora.title, bitacora.titulo);
+    const title = firstText(bitacora.title, bitacora.titulo, bitacora.name, bitacora.nombre);
+    const titleData = parseClassRecordTitle(title);
+    const serviceLabel = firstText(bitacora.servicio, bitacora.service, bitacora.proceso, bitacora.processLabel, bitacora.process?.processLabel, title);
     if (isExcludedService(serviceLabel)) continue;
-    const fecha = toDateKey(bitacora.fechaClase || bitacora.fecha || bitacora.classDate || bitacora.date || bitacora.createdAt);
-    const hora = toTimeKey(bitacora.horaClase || bitacora.hora || bitacora.classTime || bitacora.time || "");
+    const fecha = toDateKey(
+      bitacora.fechaClase || bitacora.fecha || bitacora.classDate || bitacora.date ||
+      bitacora.fechaRegistro || bitacora.class?.date || bitacora.session?.date ||
+      titleData.fecha || bitacora.createdAt
+    );
+    const hora = toTimeKey(
+      bitacora.horaClase || bitacora.hora || bitacora.classTime || bitacora.time ||
+      bitacora.sessionTime || bitacora.class?.time || bitacora.session?.time || ""
+    );
     const docenteName = canonicalTeacherName(resolveTeacherName(bitacora));
     const profesorKey = canonicalTeacherKey(docenteName || bitacora.profesorKey || bitacora.teacherKey);
     const studentRefs = resolveStudentRefs(bitacora);
@@ -695,7 +1349,11 @@ function expandBitacoras(bitacoras, students) {
     const ripIds = asArray(bitacora.ripRegistroIds || bitacora.ripRegistroId || bitacora.ripIds);
 
     if (!studentRefs.length) {
-      const name = firstText(bitacora.estudiante, bitacora.studentName, bitacora.nombreEstudiante);
+      const name = firstText(
+        bitacora.estudiante, bitacora.studentName, bitacora.nombreEstudiante,
+        bitacora.student?.name, bitacora.student?.nombre, bitacora.selectedStudent?.name,
+        bitacora.studentData?.name, titleData.estudiante
+      );
       studentRefs.push({ id: normalizeKey(name), name, key: normalizeKey(name) });
     }
 
@@ -726,11 +1384,12 @@ function expandBitacoras(bitacoras, students) {
         studentId: studentRef.id || studentData.id || "",
         estudiante,
         estudianteKey,
+        studentCanonicalIds: canonicalStudentIds(studentRef.id, studentData.id, studentData.key, estudianteKey, estudiante),
         mode,
         contadorClase,
         classLogKeys: uniqueStrings([...explicitKeys, generatedKey]).filter(Boolean),
         ripRegistroIds: ripIds,
-        title: firstText(bitacora.title, bitacora.titulo, bitacora.processLabel, bitacora.process?.processLabel),
+        title: firstText(title, bitacora.processLabel, bitacora.process?.processLabel),
       });
     }
   }
@@ -815,7 +1474,11 @@ function buildStudentMap(students) {
 
 function resolveStudentRefs(bitacora) {
   const out = [];
-  const arrays = [bitacora.studentIds, bitacora.studentRefs, bitacora.students, bitacora.estudiantes, bitacora.alumnos];
+  const arrays = [
+    bitacora.studentIds, bitacora.studentRefs, bitacora.students, bitacora.estudiantes,
+    bitacora.alumnos, bitacora.selectedStudents, bitacora.participants, bitacora.studentList,
+    bitacora.linkedStudentIds,
+  ];
   arrays.forEach((items) => {
     asArray(items).forEach((item) => {
       if (typeof item === "string") out.push({ id: item, name: item, key: normalizeKey(item) });
@@ -827,8 +1490,16 @@ function resolveStudentRefs(bitacora) {
     });
   });
 
-  const singleId = firstText(bitacora.studentId, bitacora.studentRef, bitacora.estudianteId, bitacora.estudianteKey);
-  const singleName = firstText(bitacora.estudiante, bitacora.studentName, bitacora.nombreEstudiante);
+  const singleId = firstText(
+    bitacora.studentId, bitacora.studentRef, bitacora.estudianteId, bitacora.estudianteKey,
+    bitacora.student?.id, bitacora.student?.studentId, bitacora.selectedStudent?.id,
+    bitacora.studentData?.id, bitacora.primaryStudentId
+  );
+  const singleName = firstText(
+    bitacora.estudiante, bitacora.studentName, bitacora.nombreEstudiante,
+    bitacora.student?.name, bitacora.student?.nombre, bitacora.selectedStudent?.name,
+    bitacora.studentData?.name
+  );
   if (singleId || singleName) {
     out.push({ id: singleId || normalizeKey(singleName), name: singleName || singleId, key: normalizeKey(singleName || singleId) });
   }
@@ -904,6 +1575,13 @@ function resolveTeacherName(bitacora) {
     bitacora.profesor,
     bitacora.teacherName,
     bitacora.teacher,
+    bitacora.profesorNombre,
+    bitacora.docenteNombre,
+    bitacora.teacher?.name,
+    bitacora.teacher?.nombre,
+    bitacora.teacherData?.name,
+    bitacora.docenteData?.name,
+    bitacora.selectedTeacher?.name,
     bitacora.process?.docente,
     bitacora.process?.profesor,
     bitacora.metadata?.docente,
@@ -914,10 +1592,24 @@ function resolveTeacherName(bitacora) {
   );
 }
 
+function parseClassRecordTitle(title) {
+  const text = String(title || "").trim();
+  // Formato actual de Bitácoras: "Registro de clase 2026-07-22 – Ricardo Chaparro Garcia".
+  const match = text.match(/registro\s+de\s+clase\s+(\d{4}[-/]\d{1,2}[-/]\d{1,2})\s*[-–—]\s*(.+)$/i);
+  if (!match) return { fecha: "", estudiante: "" };
+  return { fecha: toDateKey(match[1]), estudiante: match[2].trim() };
+}
+
 
 function attachRipCounterToBitacoras(expandedLogs, expectedRows) {
   return expandedLogs.map((log) => {
     const sameDayCandidates = expectedRows.filter((expected) => sameStudentTeacherDate(expected, log));
+    // Respaldo para documentos antiguos/importados: el docente puede venir en
+    // formatos distintos, pero fecha + estudiante canónico sigue siendo seguro
+    // cuando existe una única clase RIP candidata ese día.
+    const sameStudentDateCandidates = expectedRows.filter((expected) =>
+      expected.fecha === log.fecha && sameCanonicalStudent(expected, log)
+    );
     let matched = null;
     let counterSource = "";
     let reviewReason = "";
@@ -938,6 +1630,11 @@ function attachRipCounterToBitacoras(expandedLogs, expectedRows) {
     if (!matched && sameDayCandidates.length === 1) {
       matched = sameDayCandidates[0];
       counterSource = "rip_single_candidate";
+    }
+
+    if (!matched && sameStudentDateCandidates.length === 1) {
+      matched = sameStudentDateCandidates[0];
+      counterSource = "rip_student_date_fallback";
     }
 
     // Si hay varias clases del mismo estudiante con el mismo profe el mismo
@@ -1296,7 +1993,25 @@ function weekStartKey(dateKey) {
 }
 
 function sameStudentTeacherDate(expected, log) {
-  return expected.fecha === log.fecha && expected.profesorKey === log.profesorKey && expected.estudianteKey === log.estudianteKey;
+  return expected.fecha === log.fecha &&
+    expected.profesorKey === log.profesorKey &&
+    sameCanonicalStudent(expected, log);
+}
+
+function sameCanonicalStudent(expected, log) {
+  return expected.estudianteKey === log.estudianteKey ||
+    sharesCanonicalStudentId(expected.studentCanonicalIds, log.studentCanonicalIds);
+}
+
+function canonicalStudentIds(...values) {
+  return uniqueStrings(values.flatMap((value) => asArray(value))
+    .map((value) => normalizeKey(value))
+    .filter(Boolean));
+}
+
+function sharesCanonicalStudentId(first, second) {
+  const secondIds = new Set(asArray(second));
+  return asArray(first).some((id) => secondIds.has(id));
 }
 
 function filterResults(results, { ignoreStatus = false } = {}) {
@@ -1329,7 +2044,7 @@ function getAccessContext() {
     .filter(Boolean)
     .map((email) => email.toLowerCase());
   const emails = new Set(emailList);
-  const hasAdminAccess = state.demoMode || emailList.some((email) => ADMIN_EMAILS.includes(email));
+  const hasAdminAccess = state.demoMode || emailList.some(isAdminEmail);
   const isAdmin = hasAdminAccess && !state.personalView;
   const teacherKeys = new Set();
 
@@ -1345,6 +2060,10 @@ function getAccessContext() {
     isLinked: isAdmin || teacherKeys.size > 0 ||
       state.expectedRows.some((row) => row.profesorEmail && emails.has(row.profesorEmail)),
   };
+}
+
+function isAdminEmail(email) {
+  return ADMIN_EMAILS.includes(String(email || "").toLowerCase());
 }
 
 function sortFilteredResults(results, mode) {
@@ -1448,7 +2167,7 @@ function renderClassGroups(results) {
     return;
   }
   if (!sessions.length) {
-    els.classGroups.innerHTML = `<div class="empty-card"><strong>Todo al día</strong><span>No hay clases con estos filtros.</span></div>`;
+    els.classGroups.innerHTML = `<div class="empty-card"><strong>🎉 Todo al día</strong><span>Nada con estos filtros.</span></div>`;
     return;
   }
   if (!access.isAdmin) {
@@ -1456,6 +2175,57 @@ function renderClassGroups(results) {
     return;
   }
   els.classGroups.innerHTML = sessions.map(renderSession).join("");
+}
+
+/**
+ * Agrupa cada estado en un tono para el color de fila: ok (verde),
+ * danger (rosa, falta bitácora) o warn (ámbar, requiere revisión).
+ */
+function statusTone(status) {
+  if (status === "ok") return "ok";
+  if (status === "faltante" || status === "parcial_grupal") return "danger";
+  return "warn";
+}
+
+/**
+ * Devuelve el HTML del ícono SVG según el tipo de clase (danza, música, artes).
+ */
+function classTypeIcon(servicio, extraClass = "") {
+  const key = normalizeKey(servicio);
+  const isDance = key.includes("ballet") || key.includes("danza") || key.includes("baile") ||
+    key.includes("contemporane") || key.includes("jazz") || key.includes("flamenco") ||
+    key.includes("hip-hop") || key.includes("ritmo");
+  const isArt = key.includes("plast") || key.includes("arte") || key.includes("pintura") ||
+    key.includes("dibujo") || key.includes("visual") || key.includes("ceramic");
+  const extra = extraClass ? ` ${extraClass}` : "";
+
+  if (isDance) {
+    return `<span class="class-type-icon dance${extra}" aria-label="Danza" title="Danza / Ballet">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="4" r="1.8"/>
+        <path d="M12 6.5 C10 9 8 10 6 12"/>
+        <path d="M12 6.5 C14 9 16 10 18 12"/>
+        <path d="M12 6.5 L12 14"/>
+        <path d="M12 14 C10 16 9 18 8 20"/>
+        <path d="M12 14 C14 16 15 18 16 20"/>
+      </svg>
+    </span>`;
+  }
+  if (isArt) {
+    return `<span class="class-type-icon art${extra}" aria-label="Artes" title="Artes plásticas">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 21 L9 3 L12 10 L15 3 L21 21"/>
+        <path d="M6.5 15 L17.5 15"/>
+      </svg>
+    </span>`;
+  }
+  return `<span class="class-type-icon music${extra}" aria-label="Música" title="Música">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 18V5l12-2v13"/>
+      <circle cx="6" cy="18" r="3"/>
+      <circle cx="18" cy="16" r="3"/>
+    </svg>
+  </span>`;
 }
 
 function renderSession(session) {
@@ -1467,15 +2237,20 @@ function renderSession(session) {
   return `
     <details class="class-session">
       <summary>
-        <div class="session-main">
-          <div class="session-title">
-            <strong>${escapeHtml(session.servicio)}</strong>
-            ${isGroup ? `<span class="group-label">Grupal · ${names.length}</span>` : `<span class="group-label individual">Individual</span>`}
-          </div>
-          <span class="session-students">${escapeHtml(names.join(", "))}</span>
-          <div class="session-meta">
-            <span>${escapeHtml(formatDateLabel(session.fecha))} · ${escapeHtml(session.hora || "Sin hora")}</span>
-            <span>Docente: ${escapeHtml(session.profesor)}</span>
+        <div class="session-lead">
+          ${classTypeIcon(session.servicio)}
+          <div class="session-main">
+            <div class="session-title">
+              <div class="session-title-wrap">
+                <strong>${escapeHtml(session.servicio)}</strong>
+              </div>
+              ${isGroup ? `<span class="group-label">Grupal · ${names.length}</span>` : `<span class="group-label individual">Individual</span>`}
+            </div>
+            <span class="session-students">${escapeHtml(names.join(", "))}</span>
+            <div class="session-meta">
+              <span>${escapeHtml(formatDateLabel(session.fecha))} · ${escapeHtml(session.hora || "Sin hora")}</span>
+              <span>Docente: ${escapeHtml(session.profesor)}</span>
+            </div>
           </div>
         </div>
         <span class="participant-count ${pending ? "has-pending" : ""}">${pending ? `${pending} pendiente${pending === 1 ? "" : "s"}` : "Al día"}</span>
@@ -1580,48 +2355,6 @@ function buildTeacherSummaries(results) {
     .sort((a, b) => a.rate - b.rate || b.missing - a.missing || a.name.localeCompare(b.name, "es"));
 }
 
-function renderTeacherLinks(expectedRows = []) {
-  if (!els.teacherLinksPending || !els.teacherLinksSaved) return;
-  const detected = new Map();
-  expectedRows.forEach((row) => {
-    if (!row.profesorKey) return;
-    const current = detected.get(row.profesorKey) || { key: row.profesorKey, name: row.profesor || row.profesorKey, classes: 0, rowEmail: "" };
-    current.classes += 1;
-    current.rowEmail ||= String(row.profesorEmail || "").toLowerCase();
-    detected.set(row.profesorKey, current);
-  });
-  const records = [...detected.values()].sort((a, b) => a.name.localeCompare(b.name, "es"));
-  const candidates = [...new Set([
-    ...state.teacherNamesByEmail.keys(),
-    ...state.teacherLinksByKey.values()].map((link) => typeof link === "string" ? link : link.email)
-    .concat(records.map((teacher) => teacher.rowEmail))
-    .filter(Boolean))].sort((a, b) => a.localeCompare(b, "es"));
-  const saved = records.filter((teacher) => teacher.rowEmail || state.teacherLinksByKey.has(teacher.key));
-  const pending = records.filter((teacher) => !teacher.rowEmail && !state.teacherLinksByKey.has(teacher.key));
-
-  els.teacherLinksNotice.textContent = records.length
-    ? `${pending.length} docente${pending.length === 1 ? "" : "s"} pendiente${pending.length === 1 ? "" : "s"} de vincular. Los cambios se guardan en Bitácoras.`
-    : "Carga la información para revisar los docentes detectados.";
-  const renderRow = (teacher) => {
-    const savedLink = state.teacherLinksByKey.get(teacher.key);
-    const selectedEmail = teacher.rowEmail || savedLink?.email || "";
-    const options = [
-      `<option value="">Seleccionar correo…</option>`,
-      ...candidates.map((email) => `<option value="${escapeHtml(email)}" ${email === selectedEmail ? "selected" : ""}>${escapeHtml(email)}</option>`),
-    ].join("");
-    return `<div class="teacher-link-row">
-      <div class="teacher-link-name"><strong>${escapeHtml(teacher.name)}</strong><span>${teacher.classes} ${teacher.classes === 1 ? "clase detectada" : "clases detectadas"}</span></div>
-      <select class="teacher-link-select" data-teacher-key="${escapeHtml(teacher.key)}" data-teacher-name="${escapeHtml(teacher.name)}" aria-label="Correo para ${escapeHtml(teacher.name)}">${options}</select>
-    </div>`;
-  };
-  els.teacherLinksPending.innerHTML = pending.length
-    ? pending.map(renderRow).join("")
-    : `<div class="empty-card compact-empty"><strong>Todo vinculado</strong><span>No hay docentes pendientes en este periodo.</span></div>`;
-  els.teacherLinksSaved.innerHTML = saved.length
-    ? saved.map(renderRow).join("")
-    : `<div class="empty-card compact-empty"><strong>Aún no hay vínculos</strong><span>Cuando vincules un docente, aparecerá aquí.</span></div>`;
-}
-
 function renderResults(results) {
   if (!results.length) {
     els.resultsBody.innerHTML = `<tr><td colspan="6" class="empty-cell">No hay resultados con esos filtros.</td></tr>`;
@@ -1632,12 +2365,12 @@ function renderResults(results) {
     const log = item.bitacora || {};
     const source = expected.fecha ? expected : log;
     const bitacoraLabel = log.bitacoraId
-      ? `<strong>Subida</strong><div class="cell-sub">${escapeHtml(log.title || "Bitácora")}</div>`
-      : `<span class="small">Pendiente</span>`;
+      ? `<span class="log-pill is-up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Subida</span><div class="cell-sub">${escapeHtml(log.title || "Bitácora")}</div>`
+      : `<span class="log-pill is-pending"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Pendiente</span>`;
     return `
-      <tr data-result-index="${index}" tabindex="0">
+      <tr data-result-index="${index}" tabindex="0" data-tone="${statusTone(item.status)}">
         <td data-label="Estado"><span class="badge ${item.status}">${escapeHtml(item.statusLabel)}</span></td>
-        <td data-label="Clase"><span class="cell-title">${escapeHtml(source.servicioOriginal || "Clase")}</span><div class="cell-sub">${escapeHtml(source.fecha || "—")} · ${escapeHtml(source.hora || "Sin hora")}</div></td>
+        <td data-label="Clase"><div class="cell-class">${classTypeIcon(source.servicioOriginal || "Clase", "mini")}<div class="cell-class-text"><span class="cell-title">${escapeHtml(source.servicioOriginal || "Clase")}</span><div class="cell-sub">${escapeHtml(source.fecha || "—")} · ${escapeHtml(source.hora || "Sin hora")}</div></div></div></td>
         <td data-label="Estudiante">${escapeHtml(source.estudiante || "—")}</td>
         <td data-label="Docente">${escapeHtml(expected.profesor || log.docente || "—")}</td>
         <td data-label="Bitácora">${bitacoraLabel}</td>
@@ -1752,7 +2485,7 @@ function buildExpectedClassLogsPayload() {
         hora: expected.hora,
         profesorNombre: expected.profesor,
         profesorKey: expected.profesorKey,
-        profesorEmail: expected.profesorEmail || state.teacherLinksByKey.get(expected.profesorKey)?.email || state.teacherEmailsByName.get(expected.profesorKey) || "",
+        profesorEmail: expected.profesorEmail || "",
         estudianteNombre: expected.estudiante,
         estudianteKey: expected.estudianteKey,
         contadorClase: expected.contadorClase,

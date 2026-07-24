@@ -31,7 +31,6 @@ export const COLLECTIONS = Object.freeze({
   bitacorasStudents: "students",
   expectedClassLogs: "expected_class_logs",
   fsaClassLogs: "classLogs",
-  teacherLinksConfig: "docente_vinculos",
 });
 
 export const ADMIN_EMAILS = Object.freeze([
