@@ -185,6 +185,32 @@ a { color: var(--brand-strong); }
 
 .auth-actions { display: flex; gap: var(--sp-2); align-items: center; flex-wrap: wrap; }
 
+/* Guía visible de conexión: no depende del modal de bienvenida. */
+.connection-guide {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-5);
+  background: linear-gradient(120deg, #fff 0%, #f5f2ff 100%);
+}
+.connection-guide h2 { color: var(--text-strong); font-size: 1.1rem; }
+.connection-guide p:not(.eyebrow) { color: var(--muted); font-size: var(--fs-micro); margin-top: 3px; }
+.connection-flow { display: flex; align-items: center; gap: var(--sp-3); flex-shrink: 0; }
+.connection-step {
+  display: flex; align-items: center; gap: var(--sp-2); text-align: left;
+  min-width: 190px; padding: 11px 13px;
+  border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface);
+  color: var(--text); transition: border-color .15s ease, transform .15s ease, background .15s ease;
+}
+.connection-step:hover { border-color: var(--brand); background: var(--surface-2); transform: translateY(-1px); }
+.connection-step-number { width: 27px; height: 27px; display: grid; place-items: center; flex-shrink: 0; border-radius: 50%; background: var(--info-bg); color: var(--brand-strong); font-size: var(--fs-micro); font-weight: 900; }
+.connection-step strong, .connection-step small { display: block; }
+.connection-step strong { font-size: var(--fs-micro); }
+.connection-step small { color: var(--muted); font-size: .72rem; margin-top: 1px; }
+.connection-step.is-connected { border-color: var(--ok-line); background: var(--ok-bg); }
+.connection-step.is-connected .connection-step-number { background: var(--ok); color: #fff; }
+.connection-link { color: var(--brand); font-weight: 900; font-size: 1.25rem; }
+
 /* ========================= Botones ========================= */
 .btn {
   --btn-bg: var(--surface);
@@ -1208,6 +1234,12 @@ tbody tr[data-tone="ok"]:hover     { background: var(--ok-bg); }
   .auth-actions .btn { justify-content: center; width: 100%; }
   /* La vista personal es la acción estrella del profe: ancho completo */
   .auth-actions #personalViewBtn:not([hidden]) { grid-column: 1 / -1; }
+
+  .connection-guide { align-items: stretch; flex-direction: column; gap: var(--sp-3); }
+  .connection-flow { width: 100%; gap: var(--sp-2); }
+  .connection-step { min-width: 0; flex: 1 1 0; padding: 10px; }
+  .connection-step small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .connection-link { font-size: 1rem; }
 
   .panel { padding: var(--sp-4); border-radius: var(--r-lg); }
   .section-heading { flex-direction: column; align-items: flex-start; gap: var(--sp-2); }
